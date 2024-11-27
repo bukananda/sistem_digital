@@ -9,6 +9,7 @@ entity stream_cipher is
         counter: in unsigned(data_length-1 downto 0);
         nonce: in unsigned((data_length*3)-1 downto 0);
         clk,start,rst: in std_logic;
+        en_out: out std_logic;
         child_key: out unsigned((data_length*16)-1 downto 0)
     );
 end entity;
@@ -19,7 +20,7 @@ architecture behavioral of stream_cipher is
 
     type state is (idle, state1, state2, finished);
     signal curr_state,next_state: state;
-    signal curr_count,next_count: integer := 0;
+    signal curr_count,next_count,curr_bit,next_bit: integer := 0;
     signal my_array2: array_mat;
 
     procedure quarter_round(
@@ -58,7 +59,6 @@ begin
         variable counter_temp: unsigned(data_length-1 downto 0);
         variable nonce_temp: unsigned((data_length*3)-1 downto 0);
         variable my_array,my_array_idle: array_mat;
-        variable count1: integer;
         variable child_key_temp: unsigned((data_length*16)-1 downto 0);
         constant cons_1: unsigned(data_length-1 downto 0) := x"61707865";
         constant cons_2: unsigned(data_length-1 downto 0) := x"3320646e";
@@ -125,16 +125,13 @@ begin
 
         elsif curr_state = finished then
             for i in 0 to 15 loop
-                my_array(i) := my_array2(i) + my_array_idle(i);
+                my_array(i) := (my_array2(i) + my_array_idle(i));
+                child_key_temp(((data_length*16)-(32*i)-1) downto ((data_length*15)-(32*i))) := my_array(i)(7 downto 0) & my_array(i)(15 downto 8) & my_array(i)(23 downto 16) & my_array(i)(31 downto 24);
             end loop;
-            child_key_temp :=
-            my_array(0) & my_array(1) & my_array(2) & my_array(3) & 
-            my_array(4) & my_array(5) & my_array(6) & my_array(7) & 
-            my_array(8) & my_array(9) & my_array(10) & my_array(11) & 
-            my_array(12) & my_array(13) & my_array(14) & my_array(15);
+                
             next_count <= 0;
             child_key <= child_key_temp;
-            next_state <= idle;
+            next_state <= finished;
         end if;
     end process chacha20;
 end architecture behavioral;
