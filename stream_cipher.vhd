@@ -53,11 +53,11 @@ begin
         end if;
     end process change_state;
 
-    chacha20 : process(start,curr_state,curr_count)
+    chacha20 : process(start,curr_state,curr_count,key,counter,nonce)
         variable key_temp: unsigned((data_length*8)-1 downto 0);
         variable counter_temp: unsigned(data_length-1 downto 0);
         variable nonce_temp: unsigned((data_length*3)-1 downto 0);
-        variable my_array: array_mat;
+        variable my_array,my_array_idle: array_mat;
         variable count1: integer;
         variable child_key_temp: unsigned((data_length*16)-1 downto 0);
         constant cons_1: unsigned(data_length-1 downto 0) := x"61707865";
@@ -95,6 +95,7 @@ begin
                 my_array(13) := nonce_temp(95 downto 64); 
                 my_array(14) := nonce_temp(63 downto 32); 
                 my_array(15) := nonce_temp(31 downto 0);
+                my_array_idle := my_array;
                 my_array2 <= my_array;
                 next_count <= 0;
                 next_state <= state1;
@@ -123,7 +124,9 @@ begin
             end if;
 
         elsif curr_state = finished then
-            my_array := my_array2;
+            for i in 0 to 15 loop
+                my_array(i) := my_array2(i) + my_array_idle(i);
+            end loop;
             child_key_temp :=
             my_array(0) & my_array(1) & my_array(2) & my_array(3) & 
             my_array(4) & my_array(5) & my_array(6) & my_array(7) & 
@@ -134,4 +137,4 @@ begin
             next_state <= idle;
         end if;
     end process chacha20;
-end architecture behavioral; 
+end architecture behavioral;
