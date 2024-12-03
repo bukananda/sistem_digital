@@ -18,7 +18,7 @@ architecture behavioral of stream_cipher is
 
     type array_mat is array (0 to 15) of unsigned(data_length-1 downto 0);
 
-    type state is (idle, state1, state2, finished);
+    type state is (idle, state1, finished);
     signal curr_state,next_state: state;
     signal curr_count,next_count,curr_bit,next_bit: integer := 0;
     signal my_array2: array_mat;
