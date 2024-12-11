@@ -7,7 +7,7 @@ entity uart_rx is
 				i_CLOCK			:	in std_logic;
 				i_RX			:	in std_logic;
 				o_DATA			:	out std_logic_vector(7 downto 0)	;
-				i_log_ADDR		:	in integer range 0 to 255	;
+				i_log_ADDR		:	in integer range 0 to 63	;
 				o_sig_CRRP_DATA	:	out std_logic := '0'			;	---Currupted data flag
 				o_BUSY			:	out std_logic
 			);
@@ -16,15 +16,15 @@ end uart_rx;
 
 architecture behavior of uart_rx is
 
-	signal r_PRESCALER			:	integer range 0 to 5207 := 0	;----5206 = ( 50MHz[clock] / 9600[bitrate] )
+	signal r_PRESCALER			:	integer range 0 to 5206 := 0	;----5206 = ( 50MHz[clock] / 9600[bitrate] )
 	signal r_INDEX				:	integer range 0 to 9 := 0		;----Used to select bits from vector		
 	signal r_DATA_BUFFER		:	std_logic_vector(9 downto 0)	;----Data register, needs to be padded with [0] on the beggining and [1] at the end
 	signal s_RECIEVING_FLAG		:	std_logic := '0'				;----Signal holding the current state [ 1 if recieving, 0 if not recieving ]
 		
-	type t_MEM_UART is array ( 0 to 255 ) of std_logic_vector( 7 downto 0 );
+	type t_MEM_UART is array ( 0 to 63 ) of std_logic_vector( 7 downto 0 );
 	signal MEM_UART	:	t_MEM_UART;
 		
-	signal r_COUNTER	:	std_logic_vector( 7 downto 0 ) := ( others => '0' );
+	signal r_COUNTER	:	std_logic_vector( 6 downto 0 ) := ( others => '0' );
 		
 	begin
 	
@@ -98,7 +98,7 @@ architecture behavior of uart_rx is
 					
 						if( r_DATA_BUFFER(0) = '0' and r_DATA_BUFFER(9) = '1' ) then
 						
-							if( not(r_COUNTER = "11111111") ) then
+							if( not(r_COUNTER = "1111111") ) then
 								r_COUNTER	<= std_logic_vector( unsigned( r_COUNTER ) + 1 );
 							else
 								r_COUNTER	<= (others => '0');

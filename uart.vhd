@@ -54,7 +54,8 @@ entity uart is
 				i_DATA		:	in std_logic_vector(7 downto 0);		----What to send , 8 bits or 1 byte , comes from some other component
 				i_SEND		:	in std_logic							;	----The "send data" signal , comes from some other component
 				i_DISPLAY	:	in	std_logic							;	----The "show data" signal , comes from some other component
-				o_TX		:	out std_logic	:='1'					;	----Output line
+				rst_button 	: 	in std_logic;
+				o_TX		:	out std_logic :='1'					;	----Output line
 				o_dis		: 	out std_logic := '1';
 				o_send		: 	out std_logic := '1';
 				
@@ -83,7 +84,7 @@ architecture behavior of uart is
 	signal s_hex		:	std_logic_vector	(6 downto 0)				;	--- HEX (7 Segment) signals from ASCII-HEX Converter.
 	signal s_ascii		:	std_logic_vector	(7 downto 0)				;	--- RX data that read from RX Buffer and become input of ASCII-HEX Converter.
 	
-	signal s_log_addr		:	integer range 0 to 255	;
+	signal s_log_addr		:	integer range 0 to 63	;
 	signal s_button_counter	:	integer range 0 to 5000000	:= 0					;	--- counter to delay the button pressing.
 	signal delay_tx,delay_rx : integer range 0 to 5000000 := 0 ;
 	signal s_allow_press	: std_logic	:= '0'										;	--- signal to allow the button pressed.
@@ -92,7 +93,8 @@ architecture behavior of uart is
 	signal s_sig_RX_BUSY : std_logic;
 	signal s_rx,s_tx : std_logic := '0';
 	signal mode : std_logic;
-	signal counter,tx_counter : integer range 0 to 256;
+	signal counter,tx_counter : integer range 0 to 64;
+	signal null_data : std_logic;
 
 	--- END of SIGNALS
 	
@@ -114,8 +116,9 @@ architecture behavior of uart is
 
 		i_CLOCK			:	in std_logic								;
 		i_RX			:	in std_logic								;
+		-- i_rst			:	in std_logic								;
 		o_DATA			:	out std_logic_vector(7 downto 0)			;
-		i_log_ADDR		:	in integer range 0 to 255			;
+		i_log_ADDR		:	in integer range 0 to 63			;
 		o_sig_CRRP_DATA:	out std_logic := '0'						;
 		o_BUSY			:	out std_logic
 
@@ -149,6 +152,7 @@ begin
 	
 		i_CLOCK				=>	i_CLOCK				,
 		i_RX				=>	i_RX				,
+		-- i_rst				=> 	rst_button			,
 		o_DATA				=>	s_rx_data			,
 		i_log_ADDR			=>	s_log_addr			,
 		o_sig_CRRP_DATA		=>	o_sig_CRRP_DATA		,
@@ -190,7 +194,7 @@ begin
 	p_DISPLAY_RX	:	process	(i_CLOCK) begin
 		if(rising_edge(i_CLOCK)) then
 			if(
-				i_DISPLAY = '0' and				--- Display button is pressed
+				i_SEND = '0' and				--- Display button is pressed
 				s_allow_press = '1'	and			--- button is allowed to be pressed
 				s_rx = '0'
 				) then
@@ -199,6 +203,13 @@ begin
 				mode <= '0';
 				o_dis <= '0';
 				counter <= 0;
+				null_data <= '0';
+			-- elsif (rst_button = '0' and s_allow_press = '1' and s_rx = '0') then
+			-- 	s_rx <= '1';
+			-- 	mode <= '0';
+			-- 	o_dis <= '0';
+			-- 	counter <= 0;
+			-- 	null_data <= '1';
 			end if;
 			if (
 				s_rx = '1' and mode = '0'
@@ -209,10 +220,14 @@ begin
 				s_rx = '1' and mode = '1'
 			) then
 				if (s_sig_rx_busy = '0' and delay_rx = 5000000) then
-					mem_rx(counter) <= s_rx_data;
+					if (null_data <= '0') then
+						mem_rx(counter) <= s_rx_data;
+					-- elsif (null_data <= '1') then
+					-- 	mem_rx(counter) <= "00000000";
+					end if;
 					mode <= '0';
 					delay_rx <= 0;
-					if (counter < 255) then
+					if (counter < 63) then
 						counter <= counter + 1;
 					else
 						s_rx <= '0';
@@ -234,7 +249,7 @@ begin
 		
 			---	If possible, send the byte of data in the input.
 			if( 
-				i_SEND = '0' and s_tx = '0'	and s_allow_press = '1'	----	Send button is pressed
+				i_DISPLAY = '0' and s_tx = '0'	and s_allow_press = '1'	----	Send button is pressed
 				) then 					----	Send message over if subcomponent "TX" is not busy
 				s_tx <= '1';
 				tx_counter <= 0;
@@ -245,7 +260,7 @@ begin
 					r_TX_DATA	<=	mem_rx(tx_counter);									----Give subcomponent message
 					s_TX_START	<=	'1';									----Tell it to transmit
 					delay_tx 	<= 0;
-					if (tx_counter < 255) then
+					if (tx_counter < 63) then
 						tx_counter <= tx_counter + 1;
 					else
 						s_tx <= '0';
