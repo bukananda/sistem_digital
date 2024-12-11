@@ -260,7 +260,7 @@ begin
 					r_TX_DATA	<=	mem_rx(tx_counter);									----Give subcomponent message
 					s_TX_START	<=	'1';									----Tell it to transmit
 					delay_tx 	<= 0;
-					if (tx_counter < 63) then
+					if (tx_counter < 64) then
 						tx_counter <= tx_counter + 1;
 					else
 						s_tx <= '0';
