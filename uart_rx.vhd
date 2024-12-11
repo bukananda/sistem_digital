@@ -6,6 +6,7 @@ entity uart_rx is
 	port	(
 				i_CLOCK			:	in std_logic;
 				i_RX			:	in std_logic;
+				i_rst			:	in std_logic;
 				o_DATA			:	out std_logic_vector(7 downto 0)	;
 				i_log_ADDR		:	in integer range 0 to 63	;
 				o_sig_CRRP_DATA	:	out std_logic := '0'			;	---Currupted data flag
@@ -102,7 +103,7 @@ architecture behavior of uart_rx is
 								r_COUNTER	<= std_logic_vector( unsigned( r_COUNTER ) + 1 );
 							else
 								r_DATA_BUFFER <= "1111111111";
-								r_prescaler <= 0;``
+								r_prescaler <= 0;
 								r_COUNTER	<= (others => '0');
 							end if;
 							
@@ -130,6 +131,11 @@ architecture behavior of uart_rx is
 		end if; -- rising_edge(i_CLOCK)
 		
 		o_DATA	<=	MEM_UART(i_log_ADDR);
-	end process;
+		if (i_rst ='0') then  
+			mem_uart <= (others => (others => '0'));
+			r_prescaler <= 0;
+			r_counter <= "0000000";
+		end if;
 
+	end process;
 end behavior;

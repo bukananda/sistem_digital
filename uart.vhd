@@ -116,7 +116,7 @@ architecture behavior of uart is
 
 		i_CLOCK			:	in std_logic								;
 		i_RX			:	in std_logic								;
-		-- i_rst			:	in std_logic								;
+		i_rst			:	in std_logic								;
 		o_DATA			:	out std_logic_vector(7 downto 0)			;
 		i_log_ADDR		:	in integer range 0 to 63			;
 		o_sig_CRRP_DATA:	out std_logic := '0'						;
@@ -152,7 +152,7 @@ begin
 	
 		i_CLOCK				=>	i_CLOCK				,
 		i_RX				=>	i_RX				,
-		-- i_rst				=> 	rst_button			,
+		i_rst				=> 	rst_button			,
 		o_DATA				=>	s_rx_data			,
 		i_log_ADDR			=>	s_log_addr			,
 		o_sig_CRRP_DATA		=>	o_sig_CRRP_DATA		,
