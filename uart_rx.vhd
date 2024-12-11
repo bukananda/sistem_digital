@@ -101,6 +101,8 @@ architecture behavior of uart_rx is
 							if( not(r_COUNTER = "1111111") ) then
 								r_COUNTER	<= std_logic_vector( unsigned( r_COUNTER ) + 1 );
 							else
+								r_DATA_BUFFER <= "1111111111";
+								r_prescaler <= 0;``
 								r_COUNTER	<= (others => '0');
 							end if;
 							
