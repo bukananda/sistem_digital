@@ -88,18 +88,18 @@ architecture behavior of uart is
 	signal s_hex		:	std_logic_vector	(6 downto 0)				;	--- HEX (7 Segment) signals from ASCII-HEX Converter.
 	signal s_ascii		:	std_logic_vector	(7 downto 0)				;	--- RX data that read from RX Buffer and become input of ASCII-HEX Converter.
 	
-	signal s_log_addr		:	integer range 0 to 63	;
+	signal s_log_addr		:	integer range 0 to 255	;
 	signal s_button_counter	:	integer range 0 to 5000000	:= 0					;	--- counter to delay the button pressing.
 	signal delay_tx,delay_rx : integer range 0 to 5000000 := 0 ;
 	signal s_allow_press	: std_logic	:= '0'										;	--- signal to allow the button pressed.
 
 	signal s_send : std_logic := '0';
 	signal s_sig_RX_BUSY : std_logic;
+	signal s_sig_CRRP_DATA : std_logic;
 	signal s_rx,s_tx : std_logic := '0';
 	signal mode : std_logic;
-	signal counter,tx_counter : integer range 0 to 64;
+	signal counter,tx_counter : integer range 0 to 256;
 	signal null_data : std_logic;
-
 	--- END of SIGNALS
 	
 	--- COMPONENTS
@@ -122,7 +122,7 @@ architecture behavior of uart is
 		i_RX			:	in std_logic								;
 		i_rst			:	in std_logic								;
 		o_DATA			:	out std_logic_vector(7 downto 0)			;
-		i_log_ADDR		:	in integer range 0 to 63			;
+		i_log_ADDR		:	in integer range 0 to 255			;
 		o_sig_CRRP_DATA:	out std_logic := '0'						;
 		o_BUSY			:	out std_logic
 
@@ -159,7 +159,7 @@ begin
 		i_rst				=> 	rst_button			,
 		o_DATA				=>	s_rx_data			,
 		i_log_ADDR			=>	s_log_addr			,
-		o_sig_CRRP_DATA		=>	o_sig_CRRP_DATA		,
+		o_sig_CRRP_DATA		=>	s_sig_CRRP_DATA		,
 		o_BUSY				=>	s_sig_RX_BUSY
 		
 	);
@@ -216,7 +216,8 @@ begin
 				else
 					state_rx <= idle;
 				end if;
-			elsif ( 
+			end if;
+			if ( 
 				state_rx = state1
 			) then
 				s_log_addr <= counter;
@@ -225,14 +226,14 @@ begin
 			if (
 				state_rx = state2
 			) then
-				if (s_sig_rx_busy = '0' and delay_rx = 5000000) then
+				if (s_sig_crrp_data = '0' and s_sig_rx_busy = '0' and delay_rx = 2000000) then
 					if (null_data <= '0') then
 						mem_rx(counter) <= s_rx_data;
 					-- elsif (null_data <= '1') then
 					-- 	mem_rx(counter) <= "00000000";
 					end if;
 					delay_rx <= 0;
-					if (counter < 63) then
+					if (counter < 255) then
 						counter <= counter + 1;
 						state_rx <= state1;
 					else
@@ -262,11 +263,11 @@ begin
 				o_send <= '0';
 			
 			elsif (s_tx = '1') then
-				if (s_TX_BUSY = '0' and delay_tx = 5000000) then 	----	transmitter is not busy / not transmitting
+				if (s_TX_BUSY = '0' and delay_tx = 4000000) then 	----	transmitter is not busy / not transmitting
 					r_TX_DATA	<=	mem_rx(tx_counter);									----Give subcomponent message
 					s_TX_START	<=	'1';									----Tell it to transmit
 					delay_tx 	<= 0;
-					if (tx_counter < 64) then
+					if (tx_counter < 256) then
 						tx_counter <= tx_counter + 1;
 					else
 						s_tx <= '0';
