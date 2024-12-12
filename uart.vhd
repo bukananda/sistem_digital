@@ -75,7 +75,11 @@ end uart;
 architecture behavior of uart is
 	--- SIGNALS
 	type t_MEM_UART is array (0 to 255) of std_logic_vector(7 downto 0);
+	type state is (idle, state1, state2);
+
 	signal mem_rx : t_MEM_UART;
+	signal state_rx : state;
+
 	signal r_TX_DATA	:	std_logic_vector(7 downto 0) := (others => '1')	;	---	Register that holds the message to send
 	signal s_TX_START	:	std_logic := '0'								;	---	Stored signal to begin transmission
 	signal s_TX_BUSY	:	std_logic										;	---	Stored signal that reminds the main component that its sub component "TX" is busy
@@ -193,31 +197,33 @@ begin
 	--- process: untuk menampilkan data di RX Buffer. alamat buffer dipilih menggunakan switch. perintah display menggunakan button key_1.
 	p_DISPLAY_RX	:	process	(i_CLOCK) begin
 		if(rising_edge(i_CLOCK)) then
-			if(
-				i_SEND = '0' and				--- Display button is pressed
-				s_allow_press = '1'	and			--- button is allowed to be pressed
-				s_rx = '0'
-				) then
-							---	set address of data that want to be display from RX buffer.
-				s_rx <= '1';
-				mode <= '0';
-				o_dis <= '0';
-				counter <= 0;
-				null_data <= '0';
-			-- elsif (rst_button = '0' and s_allow_press = '1' and s_rx = '0') then
-			-- 	s_rx <= '1';
-			-- 	mode <= '0';
-			-- 	o_dis <= '0';
-			-- 	counter <= 0;
-			-- 	null_data <= '1';
-			end if;
-			if (
-				s_rx = '1' and mode = '0'
+			if (state_rx = idle) then
+				if(
+					i_SEND = '0' and				--- Display button is pressed
+					s_allow_press = '1'			--- button is allowed to be pressed
+					) then
+								---	set address of data that want to be display from RX buffer.
+					o_dis <= '0';
+					counter <= 0;
+					null_data <= '0';
+					state_rx <= state1;
+				-- elsif (rst_button = '0' and s_allow_press = '1' and s_rx = '0') then
+				-- 	s_rx <= '1';
+				-- 	mode <= '0';
+				-- 	o_dis <= '0';
+				-- 	counter <= 0;
+				-- 	null_data <= '1';
+				else
+					state_rx <= idle;
+				end if;
+			elsif ( 
+				state_rx = state1
 			) then
 				s_log_addr <= counter;
-				mode <= '1';
-			elsif (
-				s_rx = '1' and mode = '1'
+				state_rx <= state2;
+			end if;
+			if (
+				state_rx = state2
 			) then
 				if (s_sig_rx_busy = '0' and delay_rx = 5000000) then
 					if (null_data <= '0') then
@@ -225,12 +231,12 @@ begin
 					-- elsif (null_data <= '1') then
 					-- 	mem_rx(counter) <= "00000000";
 					end if;
-					mode <= '0';
 					delay_rx <= 0;
 					if (counter < 63) then
 						counter <= counter + 1;
+						state_rx <= state1;
 					else
-						s_rx <= '0';
+						state_rx <= idle;
 						o_dis <= '1';
 					end if;
 				else
