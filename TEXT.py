@@ -2,10 +2,10 @@ import os
 
 def create_text_file():
     print("Welcome to the TXT File Creator!")
-    print("Note: Each line must be a maximum of 1000 ASCII characters.")
+    print("Note: Each line must be a maximum of 256 ASCII characters.")
     
     # Ensure the 'chat' folder exists
-    folder_name = "chat"
+    folder_name = "Chat"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
     
@@ -16,12 +16,12 @@ def create_text_file():
     file_path = os.path.join(folder_name, file_name)
     
     # Ask for the content of the file
-    print("\nWrite your content below. When you're done, type 'END' on a new line and press Enter.")
+    print("\nWrite your content below. When you're done, type '.' on a new line and press Enter.")
     
     lines = []
     while True:
         line = input()
-        if line.strip().upper() == "END":
+        if line.strip().upper() == ".":
             break
         
         # Check ASCII characters and limit to 64
@@ -29,9 +29,9 @@ def create_text_file():
             print("Error: Only ASCII characters are allowed. Please try again.")
             continue
         
-        if len(line) > 1000:
-            print("Warning: Input exceeded 64 characters and will be truncated.")
-            line = line[:1000]  # Truncate to 64 characters
+        if len(line) > 256:
+            print("Warning: Input exceeded 256 characters and will be truncated.")
+            line = line[:256]  # Truncate to 256 characters
         
         lines.append(line)
     
