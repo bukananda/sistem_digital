@@ -4,10 +4,9 @@ use ieee.numeric_std.all;
  
 entity UART is
     generic (
-        data_length : integer := 32;
-        key_length  : integer := 8;
-        nonce_length: integer := 3;
-        text_length : integer := 128;
+        key_length  : integer := 32;
+        nonce_length: integer := 12;
+        text_char_length : integer := 128;
         upper_delay : integer := 160000
     );
     port (
@@ -22,19 +21,24 @@ entity UART is
 end UART;
 
 architecture rtl of UART is
-    signal upper_bond  : integer := (key_length+nonce_length+text_length-1);
+    signal key  : unsigned(255 downto 0);
+    signal nonce: unsigned(95 downto 0);
+
+    signal upper_bond  : integer := (text_char_length-1);
 
     type t_MEM_UART is array (0 to upper_bond) of std_logic_vector(7 downto 0);
     signal mem_uart : t_MEM_UART;
 
-    type state is (idle, rx_mode, padding_mode, keystream_mode, tx_mode);
+    type state is (idle, rx_mode, padding_mode, insert_key, insert_nonce, keystream_mode, tx_mode);
     signal curr_state: state := idle; 
 
     signal r_Byte, r_tx_from_array : std_logic_vector(7 downto 0);
     signal r_keystream : unsigned(7 downto 0);
-    signal r_counter: integer range 0 to upper_bond := 0;
+    signal r_counter: integer range 0 to upper_bond := 44;
     signal delay_counter: integer range 0 to upper_delay := 0;
     signal r_start, r_rst, r_busy, out_keystream, from_idle_state ,r_rx_dv, r_active, r_done, activate_array, activate_tx : std_logic;
+
+    signal ctr_chacha : integer range 0 to 63 := 0;
 
     component UART_RX is
         port (
@@ -61,8 +65,6 @@ architecture rtl of UART is
             clk             : in std_logic;
             i_start         : in std_logic;
             i_rst           : in std_logic;
-            -- en_out          : in std_logic;
-            -- text_plain      : in unsigned(7 downto 0);
             key             : in unsigned(255 downto 0);
             nonce           : in unsigned(95 downto 0);
             keystream8bit   : out unsigned(7 downto 0);
@@ -72,7 +74,9 @@ architecture rtl of UART is
     end component;
 begin
     -- r_start <= not (i_start);
-	r_rst   <= not (i_rst);
+	-- r_rst   <= not (i_rst);
+    key <= x"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    nonce <= x"000000000000004a00000000";
 
     u_RX : uart_rx port map(
         i_Clk       => i_Clk,
@@ -94,8 +98,8 @@ begin
         clk             => i_Clk,
         i_start         => r_start,
         i_rst           => r_rst,
-        key             => x"03020100070605040b0a09080f0e0d0c13121110171615141b1a19181f1e1d1c",
-        nonce           => x"000000004a00000000000000",
+        key             => key,
+        nonce           => nonce,
         keystream8bit   => r_keystream,
         out_active      => r_busy,
         out_done        => out_keystream
@@ -106,9 +110,10 @@ begin
         if rising_edge(i_Clk) then
             if curr_state = idle then
                 r_start <= '0';
+                r_rst <= '1';
                 if (activate_array = '1') then
                     from_idle_state <= '1';
-                    -- r_start <= '1';
+                    r_rst <= '0';
                     r_counter <= 0;
                     curr_state <= rx_mode;
                 end if;
@@ -123,8 +128,8 @@ begin
                         r_start <= '1';
                         curr_state <= keystream_mode;
                     else
-                        r_start <= '0';
                         r_counter <= r_counter + 1;
+                        r_start <= '0';
                     end if;
                 elsif (delay_counter = upper_delay) then
                     curr_state <= padding_mode;
@@ -144,8 +149,44 @@ begin
             elsif curr_state = keystream_mode then
                 if (out_keystream = '1') then
                     mem_uart(r_counter) <= mem_uart(r_counter) xor std_logic_vector(r_keystream);
-                    if (r_counter = text_length) then
+                    if (r_counter = upper_bond) then
                         r_start <= '0';
+                        r_counter <= 0;
+                        curr_state <= insert_key;
+                    else
+                        r_start <= '1';
+                        r_counter <= r_counter + 1;
+                        if (ctr_chacha = 63) then
+                            ctr_chacha <= 0;
+                        else
+                            ctr_chacha <= ctr_chacha + 1;
+                        end if; 
+                    end if;
+                end if;
+
+            elsif curr_state = insert_key then
+                r_start <= '0';
+                if (r_active = '0') then
+                    r_tx_from_array <= std_logic_vector(key(255-8*(r_counter) downto 248-8*(r_counter)));
+                    activate_tx <= '1';
+                elsif (r_done = '1') then
+                    activate_tx <= '0';
+                    if (r_counter = 31) then
+                        r_counter <= 0;
+                        curr_state <= insert_nonce;
+                    else
+                        r_counter <= r_counter + 1;
+                    end if;
+                end if;
+
+            elsif curr_state = insert_nonce then
+                r_start <= '0';
+                if (r_active = '0') then
+                    r_tx_from_array <= std_logic_vector(nonce(95-8*(r_counter) downto 88-8*(r_counter)));
+                    activate_tx <= '1';
+                elsif (r_done = '1') then
+                    activate_tx <= '0';
+                    if (r_counter = 11) then
                         r_counter <= 0;
                         curr_state <= tx_mode;
                     else
@@ -154,6 +195,7 @@ begin
                 end if;
 
             elsif curr_state = tx_mode then
+                r_start <= '0';
                 if (r_active = '0') then
                     r_tx_from_array <= mem_uart(r_counter);
                     activate_tx <= '1';
