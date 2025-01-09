@@ -9,8 +9,8 @@ entity cipher_text is
         i_rst           : in std_logic := '0';
         -- en_out          : in std_logic;
         -- text_plain      : in unsigned(7 downto 0);
-        key             : in unsigned(255 downto 0) := x"03020100070605040b0a09080f0e0d0c13121110171615141b1a19181f1e1d1c";
-        nonce           : in unsigned(95 downto 0) := x"090000004a00000000000000";
+        key             : in unsigned(255 downto 0) := x"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+        nonce           : in unsigned(95 downto 0) := x"000000000000004a00000000";
         keystream8bit   : out unsigned(7 downto 0);
         out_active      : out std_logic;
         out_done        : out std_logic     
@@ -73,13 +73,13 @@ begin
                     temp_array(3) <= x"6b206574";
 
                     for i in 4 to 11 loop
-                        temp_array(i) <= key(255-32*(i-4) downto 224-32*(i-4));
+                        temp_array(i) <= key(255-32*(i-4)-24 downto 255-32*(i-4)-31) & key(255-32*(i-4)-16 downto 255-32*(i-4)-23) & key(255-32*(i-4)-8 downto 255-32*(i-4)-15) & key(255-32*(i-4) downto 255-32*(i-4)-7);
                     end loop;
 
                     temp_array(12) <= chacha_counter;
 
                     for i in 13 to 15 loop
-                        temp_array(i) <= nonce(95-32*(i-13) downto 64-32*(i-13));
+                        temp_array(i) <= nonce(95-32*(i-13)-24 downto 95-32*(i-13)-31) & nonce(95-32*(i-13)-16 downto 95-32*(i-13)-23) & nonce(95-32*(i-13)-8 downto 95-32*(i-13)-15) & nonce(95-32*(i-13) downto 95-32*(i-13)-7);
                     end loop;
                     curr_state <= odd_round;
                 else
@@ -133,13 +133,13 @@ begin
                 temp_array(3) <= temp_array(3) + x"6b206574";
 
                 for i in 4 to 11 loop
-                    temp_array(i) <= temp_array(i) + key(255-32*(i-4) downto 224-32*(i-4));
+                    temp_array(i) <= temp_array(i) + (key(255-32*(i-4)-24 downto 255-32*(i-4)-31) & key(255-32*(i-4)-16 downto 255-32*(i-4)-23) & key(255-32*(i-4)-8 downto 255-32*(i-4)-15) & key(255-32*(i-4) downto 255-32*(i-4)-7));
                 end loop;
 
                 temp_array(12) <= temp_array(12) + chacha_counter;
 
                 for i in 13 to 15 loop
-                    temp_array(i) <= temp_array(i) + nonce(95-32*(i-13) downto 64-32*(i-13));
+                    temp_array(i) <= temp_array(i) + (nonce(95-32*(i-13)-24 downto 95-32*(i-13)-31) & nonce(95-32*(i-13)-16 downto 95-32*(i-13)-23) & nonce(95-32*(i-13)-8 downto 95-32*(i-13)-15) & nonce(95-32*(i-13) downto 95-32*(i-13)-7));
                 end loop;
 
                 curr_state <= output_mode;
