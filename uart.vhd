@@ -13,9 +13,9 @@ entity UART is
     i_Clk       : in  std_logic;
     i_RX        : in  std_logic;
     i_Start     : in  std_logic;
-    i_rst       : in  std_logic;
+    i_mode      : in  std_logic;
     o_TX        : out std_logic;
-    o_TX_Active : out std_logic;
+    o_mode      : out std_logic;
     o_TX_Done   : out std_logic
     );
 end UART;
@@ -29,16 +29,22 @@ architecture rtl of UART is
     type t_MEM_UART is array (0 to upper_bond) of std_logic_vector(7 downto 0);
     signal mem_uart : t_MEM_UART;
 
-    type state is (idle, rx_mode, padding_mode, insert_key, insert_nonce, keystream_mode, tx_mode);
+    type state is (idle, encrypt_mode, decrypt_mode, key_nonce_maker_mode, padding_mode, insert_key, insert_nonce, keystream_mode, tx_mode);
     signal curr_state: state := idle; 
 
     signal r_Byte, r_tx_from_array : std_logic_vector(7 downto 0);
     signal r_keystream : unsigned(7 downto 0);
-    signal r_counter: integer range 0 to upper_bond := 44;
+    signal r_counter: integer range 0 to upper_bond+44 := 0;
     signal delay_counter: integer range 0 to upper_delay := 0;
     signal r_start, r_rst, r_busy, out_keystream, from_idle_state ,r_rx_dv, r_active, r_done, activate_array, activate_tx : std_logic;
 
     signal ctr_chacha : integer range 0 to 63 := 0;
+
+    signal mode : std_logic;
+    signal s_button_counter: integer range 0 to 50000000 := 0;
+    signal s_allow_press: std_logic;
+
+    signal random_byte: unsigned(15 downto 0);
 
     component UART_RX is
         port (
@@ -72,11 +78,20 @@ architecture rtl of UART is
             out_done        : out std_logic     
         );
     end component;
+
+    component fibonacci is
+        port (
+            clk         : in STD_LOGIC;
+            rst         : in STD_LOGIC; 
+            random_byte : out UNSIGNED(15 downto 0)
+        );
+    end component;
 begin
+    o_mode <= not mode;
     -- r_start <= not (i_start);
 	-- r_rst   <= not (i_rst);
-    key <= x"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-    nonce <= x"000000000000004a00000000";
+    -- key <= x"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    -- nonce <= x"000000000000004a00000000";
 
     u_RX : uart_rx port map(
         i_Clk       => i_Clk,
@@ -105,25 +120,78 @@ begin
         out_done        => out_keystream
     );
 
-    process(i_Clk)
+    fbcc_component: fibonacci port map(
+        clk => i_clk,
+        rst => r_rst,
+        random_byte => random_byte
+    );
+
+    --- delay to handle debouncing of buttons
+    p_button:	process(i_clk) begin
+        if(rising_edge(i_clk)) then
+            if(s_button_counter = 10000000) then
+                s_button_counter <= 0;
+                s_allow_press <= '1';
+            else
+                s_button_counter <= s_button_counter + 1;
+                s_allow_press <= '0';
+            end if;
+        end if;
+    end process p_button;
+        
+    fsm: process(i_Clk)
     begin
         if rising_edge(i_Clk) then
             if curr_state = idle then
                 r_start <= '0';
                 r_rst <= '1';
+                if (s_allow_press = '1' and mode = '0' and i_mode = '0') then
+                    mode <= '1';
+                elsif (s_allow_press = '1' and mode = '1' and i_mode = '0') then
+                    mode <= '0';
+                end if;
+
                 if (activate_array = '1') then
                     from_idle_state <= '1';
                     r_rst <= '0';
                     r_counter <= 0;
-                    curr_state <= rx_mode;
+                    if (mode = '0') then
+                        curr_state <= encrypt_mode;
+                    else
+                        curr_state <= decrypt_mode;
+                    end if;
                 end if;
-            elsif curr_state = rx_mode then
+
+            elsif curr_state = encrypt_mode then
                 delay_counter <= delay_counter + 1;
                 if (activate_array = '1' or from_idle_state = '1') then
                     delay_counter <= 0;
                     mem_uart(r_counter) <= r_Byte;
                     from_idle_state <= '0';
                     if (r_counter = upper_bond) then
+                        r_counter <= 0;
+                        curr_state <= key_nonce_maker_mode;
+                    else
+                        r_counter <= r_counter + 1;
+                        r_start <= '0';
+                    end if;
+                elsif (delay_counter = upper_delay) then
+                    curr_state <= padding_mode;
+                end if;
+
+            elsif curr_state = decrypt_mode then
+                delay_counter <= delay_counter + 1;
+                if (activate_array = '1' or from_idle_state = '1') then
+                    delay_counter <= 0;
+                    if (r_counter < 32) then
+                        key(255-8*r_counter downto 248-8*r_counter) <= unsigned(r_Byte);
+                    elsif ((r_counter > 31) and (r_counter < 44)) then
+                        nonce(95-8*(r_counter-32) downto 88-8*(r_counter-32)) <= unsigned(r_Byte);
+                    else
+                        mem_uart(r_counter-44) <= r_Byte;
+                    end if;
+                    from_idle_state <= '0';
+                    if (r_counter = upper_bond+44) then
                         r_counter <= 0;
                         r_start <= '1';
                         curr_state <= keystream_mode;
@@ -139,11 +207,30 @@ begin
                 mem_uart(r_counter) <= "00000000";
                 if (r_counter = upper_bond) then
                     r_counter <= 0;
-                    r_start <= '1';
-                    curr_state <= keystream_mode;
+                    if (mode = '0') then
+                        curr_state <= key_nonce_maker_mode;
+                    elsif (mode = '1') then
+                        r_start <= '1';
+                        curr_state <= keystream_mode;
+                    end if;
                 else
                     r_counter <= r_counter + 1;
                     r_start <= '0';
+                end if;
+
+            elsif curr_state = key_nonce_maker_mode then
+                if (r_counter < 16) then
+                    key(255-16*r_counter downto 240-16*r_counter) <= random_byte;
+                    r_counter <= r_counter + 1;
+                    r_start <= '0';
+                elsif ((r_counter > 15) and (r_counter < 32)) then
+                    nonce(95-16*(r_counter-16) downto 80-16*(r_counter-16)) <= random_byte;
+                    r_counter <= r_counter + 1;
+                    r_start <= '0';
+                else
+                    r_counter <= 0;
+                    r_start <= '1';
+                    curr_state <= keystream_mode;
                 end if;
 
             elsif curr_state = keystream_mode then
@@ -210,5 +297,5 @@ begin
                 end if;
             end if; 
         end if;
-    end process;
+    end process fsm;
 end rtl;
