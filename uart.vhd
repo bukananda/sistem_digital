@@ -4,18 +4,18 @@ use ieee.numeric_std.all;
  
 entity UART is
     generic (
-        key_length  : integer := 32;
-        nonce_length: integer := 12;
-        text_char_length : integer := 128;
-        upper_delay : integer := 160000
+        key_length  : integer := 32; -- Panjang key yaitu 32 byte 
+        nonce_length: integer := 12; -- Panjang nonce yaitu 12 byte 
+        text_char_length : integer := 128; -- Panjang maksimal text input yaitu 128 karater 
+        upper_delay : integer := 160000 -- Untuk memeriksa delay dalam pengiriman text 
     );
     port (
     i_Clk       : in  std_logic;
     i_RX        : in  std_logic;
     i_Start     : in  std_logic;
-    i_mode      : in  std_logic;
+    i_mode      : in  std_logic; -- Mode yang diharapkan apakah akan enkrip atau dekrip 
     o_TX        : out std_logic;
-    o_mode      : out std_logic;
+    o_mode      : out std_logic; 
     o_TX_Done   : out std_logic
     );
 end UART;
@@ -24,10 +24,10 @@ architecture rtl of UART is
     signal key  : unsigned(255 downto 0);
     signal nonce: unsigned(95 downto 0);
 
-    signal upper_bond  : integer := (text_char_length-1);
+    signal upper_bond  : integer := (text_char_length-1); -- 127 
 
     type t_MEM_UART is array (0 to upper_bond) of std_logic_vector(7 downto 0);
-    signal mem_uart : t_MEM_UART;
+    signal mem_uart : t_MEM_UART; -- array (0 to 127) masing-masing 8 bit 
 
     type state is (idle, encrypt_mode, decrypt_mode, key_nonce_maker_mode, padding_mode, insert_key, insert_nonce, keystream_mode, tx_mode);
     signal curr_state: state := idle; 
@@ -36,11 +36,12 @@ architecture rtl of UART is
     signal r_keystream : unsigned(7 downto 0);
     signal r_counter: integer range 0 to upper_bond+44 := 0;
     signal delay_counter: integer range 0 to upper_delay := 0;
-    signal r_start, r_rst, r_busy, out_keystream, from_idle_state ,r_rx_dv, r_active, r_done, activate_array, activate_tx : std_logic;
+    signal r_start, r_rst, r_busy, out_keystream, from_idle_state ,r_rx_dv, r_active, r_done : std_logic;
+    signal activate_array, activate_tx : std_logic;
 
     signal ctr_chacha : integer range 0 to 63 := 0;
 
-    signal mode : std_logic := '0';
+    signal mode : std_logic := '0'; 
     signal s_button_counter: integer range 0 to 8000000 := 0;
     signal s_allow_press: std_logic;
 
@@ -88,11 +89,8 @@ architecture rtl of UART is
     end component;
 begin
     o_mode <= not mode;
-    -- r_start <= not (i_start);
-	-- r_rst   <= not (i_rst);
-    -- key <= x"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-    -- nonce <= x"000000000000004a00000000";
-
+  
+ -- Penyesuain component 
     u_RX : uart_rx port map(
         clock       => i_Clk,
         i_RX_Serial => i_RX,
@@ -126,12 +124,12 @@ begin
         random_byte => random_byte
     );
 
-    --- delay to handle debouncing of buttons
-    p_button:	process(i_clk) begin
+   -- Delay pemencetan tombol dengan agar aktif 
+    p_button: process(i_clk) begin
         if(rising_edge(i_clk)) then
             if(s_button_counter = 8000000) then
                 s_button_counter <= 0;
-                s_allow_press <= '1';
+                s_allow_press <= '1'; -- Akan aktif jika ditekan selama 8000000 clock
             else
                 s_button_counter <= s_button_counter + 1;
                 s_allow_press <= '0';
@@ -141,9 +139,9 @@ begin
         
     fsm: process(i_Clk)
     begin
-        if rising_edge(i_Clk) then
-            if curr_state = idle then
-                r_start <= '0';
+        if rising_edge(i_Clk) then -- Bekerja setiap kenaikan clock 
+            if curr_state = idle then 
+                r_start <= '0'; -- State idle, start = 0 dan sistem di reset 
                 r_rst <= '1';
                 if (s_allow_press = '1' and mode = '0' and i_mode = '0') then
                     mode <= '1';
@@ -151,8 +149,8 @@ begin
                     mode <= '0';
                 end if;
 
-                if (activate_array = '1') then
-                    from_idle_state <= '1';
+                if (activate_array = '1') then -- Jika ada sinyal activate array maka
+                    from_idle_state <= '1'; -- Menandakan bahwa berasal dari state idle 
                     r_rst <= '0';
                     r_counter <= 0;
                     if (mode = '0') then
@@ -166,50 +164,50 @@ begin
                 delay_counter <= delay_counter + 1;
                 if (activate_array = '1' or from_idle_state = '1') then
                     delay_counter <= 0;
-                    mem_uart(r_counter) <= r_Byte;
+                    mem_uart(r_counter) <= r_Byte; -- proses penerimaan pesan awal 
                     from_idle_state <= '0';
-                    if (r_counter = upper_bond) then
+                    if (r_counter = upper_bond) then -- sudah diterima seluruhnya  
                         r_counter <= 0;
-                        curr_state <= key_nonce_maker_mode;
+                        curr_state <= key_nonce_maker_mode; -- Lanjut ke state key nonce maker 
                     else
                         r_counter <= r_counter + 1;
                         r_start <= '0';
                     end if;
-                elsif (delay_counter = upper_delay) then
-                    curr_state <= padding_mode;
+                elsif (delay_counter = upper_delay) then -- Jika delay counter sudah = 160000
+                    curr_state <= padding_mode; -- Masuk ke mode padding 
                 end if;
 
             elsif curr_state = decrypt_mode then
                 delay_counter <= delay_counter + 1;
                 if (activate_array = '1' or from_idle_state = '1') then
                     delay_counter <= 0;
-                    if (r_counter < 32) then
+                    if (r_counter < 32) then -- Proses pengambilan key 
                         key(255-8*r_counter downto 248-8*r_counter) <= unsigned(r_Byte);
-                    elsif ((r_counter > 31) and (r_counter < 44)) then
+                    elsif ((r_counter > 31) and (r_counter < 44)) then -- Proses pengambilan nonce 
                         nonce(95-8*(r_counter-32) downto 88-8*(r_counter-32)) <= unsigned(r_Byte);
-                    else
-                        mem_uart(r_counter-44) <= r_Byte;
+                    else 
+                        mem_uart(r_counter-44) <= r_Byte; -- Pesan yang akan di dekrip 
                     end if;
                     from_idle_state <= '0';
-                    if (r_counter = upper_bond+44) then
-                        r_counter <= 0;
-                        r_start <= '1';
+                    if (r_counter = upper_bond+44) then -- Sudah terambil seluruhnya (key, nonce, pesan)
+                        r_counter <= 0; 
+                        r_start <= '1'; -- Mulai mengaktifkan chacha20
                         curr_state <= keystream_mode;
                     else
                         r_counter <= r_counter + 1;
                         r_start <= '0';
                     end if;
-                elsif (delay_counter = upper_delay) then
+                elsif (delay_counter = upper_delay) then 
                     curr_state <= padding_mode;
                 end if;
 
             elsif curr_state = padding_mode then
-                mem_uart(r_counter) <= "00000000";
-                if (r_counter = upper_bond) then
+                mem_uart(r_counter) <= "00000000"; -- Menambahkan 0 pada bagian yang kosong 
+                if (r_counter = upper_bond) then -- Sudah ditambahkan sepenuhnya 
                     r_counter <= 0;
-                    if (mode = '0') then
+                    if (mode = '0') then -- enkrip
                         curr_state <= key_nonce_maker_mode;
-                    elsif (mode = '1') then
+                    elsif (mode = '1') then -- dekrip
                         r_start <= '1';
                         curr_state <= keystream_mode;
                     end if;
@@ -218,30 +216,30 @@ begin
                     r_start <= '0';
                 end if;
 
-            elsif curr_state = key_nonce_maker_mode then
-                if (r_counter < 16) then
+            elsif curr_state = key_nonce_maker_mode then 
+                if (r_counter < 16) then -- Mengambil key dari fibonacci
                     key(255-16*r_counter downto 240-16*r_counter) <= random_byte;
                     r_counter <= r_counter + 1;
                     r_start <= '0';
-                elsif ((r_counter > 15) and (r_counter < 32)) then
+                elsif ((r_counter > 15) and (r_counter < 32)) then -- Mengambil nonce dari fibonacci
                     nonce(95-16*(r_counter-16) downto 80-16*(r_counter-16)) <= random_byte;
                     r_counter <= r_counter + 1;
                     r_start <= '0';
-                else
+                else -- Sudah selesai diambil, 
                     r_counter <= 0;
-                    r_start <= '1';
+                    r_start <= '1'; -- Mulai mengaktifkan chacha20
                     curr_state <= keystream_mode;
                 end if;
-
+                
             elsif curr_state = keystream_mode then
-                if (out_keystream = '1') then
-                    mem_uart(r_counter) <= mem_uart(r_counter) xor std_logic_vector(r_keystream);
-                    if (r_counter = upper_bond) then
-                        r_start <= '0';
+                if (out_keystream = '1') then -- keystream sudah siap dikeluarkan 
+                    mem_uart(r_counter) <= mem_uart(r_counter) xor std_logic_vector(r_keystream); -- XOR 
+                    if (r_counter = upper_bond) then -- Seluruh teks sudah di xor 
+                        r_start <= '0'; -- Stop chacha20
                         r_counter <= 0;
-                        curr_state <= insert_key;
-                    else
-                        r_start <= '1';
+                        curr_state <= insert_key; -- Lanjut ke state pengiriman key 
+                    else -- Belum meng-xor seluruh input teks 
+                        r_start <= '1'; -- Kembali mengaktifkan chacha20
                         r_counter <= r_counter + 1;
                         if (ctr_chacha = 63) then
                             ctr_chacha <= 0;
@@ -255,10 +253,10 @@ begin
                 r_start <= '0';
                 if (r_active = '0') then
                     r_tx_from_array <= std_logic_vector(key(255-8*(r_counter) downto 248-8*(r_counter)));
-                    activate_tx <= '1';
+                    activate_tx <= '1'; -- Mengaktifkan TX 
                 elsif (r_done = '1') then
                     activate_tx <= '0';
-                    if (r_counter = 31) then
+                    if (r_counter = 31) then -- Sudah 32 byte yang dikirimkan 
                         r_counter <= 0;
                         curr_state <= insert_nonce;
                     else
@@ -273,7 +271,7 @@ begin
                     activate_tx <= '1';
                 elsif (r_done = '1') then
                     activate_tx <= '0';
-                    if (r_counter = 11) then
+                    if (r_counter = 11) then -- Sudah 12 byte dikirimkan
                         r_counter <= 0;
                         curr_state <= tx_mode;
                     else
@@ -283,19 +281,20 @@ begin
 
             elsif curr_state = tx_mode then
                 r_start <= '0';
-                if (r_active = '0') then
-                    r_tx_from_array <= mem_uart(r_counter);
+                if (r_active = '0') then -- Sedang tidak ada transmisi 
+                    r_tx_from_array <= mem_uart(r_counter); -- Mengambil pesan yang sudah di proses 
                     activate_tx <= '1';
-                elsif (r_done = '1') then
+                elsif (r_done = '1') then -- Sudah terkirim 
                     activate_tx <= '0';
-                    if (r_counter = upper_bond) then
+                    if (r_counter = upper_bond) then -- Sudah dikirimkan seluruhnya 
                         r_counter <= 0;
-                        curr_state <= idle;
+                        curr_state <= idle; -- Kembali ke idle 
                     else
                         r_counter <= r_counter + 1;
                     end if;
                 end if;
             end if; 
+
         end if;
     end process fsm;
 end rtl;
