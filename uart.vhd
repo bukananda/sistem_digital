@@ -40,7 +40,7 @@ architecture rtl of UART is
 
     signal ctr_chacha : integer range 0 to 63 := 0;
 
-    signal mode : std_logic;
+    signal mode : std_logic := '0';
     signal s_button_counter: integer range 0 to 50000000 := 0;
     signal s_allow_press: std_logic;
 
@@ -48,17 +48,17 @@ architecture rtl of UART is
 
     component UART_RX is
         port (
-            i_Clk       : in  std_logic;
+            clock       : in  std_logic;
             i_RX_Serial : in  std_logic;
-            o_RX_DV     : out std_logic;
+            o_RX_valid  : out std_logic;
             o_RX_Byte   : out std_logic_vector(7 downto 0)
         );
     end component;
 
     component UART_TX is
         port (
-            i_Clk       : in  std_logic;
-            i_TX_DV     : in  std_logic;
+            clock       : in  std_logic;
+            i_TX_valid  : in  std_logic;
             i_TX_Byte   : in  std_logic_vector(7 downto 0);
             o_TX_Active : out std_logic;
             o_TX_Serial : out std_logic;
@@ -94,15 +94,15 @@ begin
     -- nonce <= x"000000000000004a00000000";
 
     u_RX : uart_rx port map(
-        i_Clk       => i_Clk,
+        clock       => i_Clk,
         i_RX_Serial => i_RX,
-        o_RX_DV     => activate_array,
+        o_RX_valid  => activate_array,
         o_RX_Byte   => r_Byte
     );
 
     u_TX : uart_tx port map(
-        i_Clk       => i_Clk,
-        i_TX_DV     => activate_tx,
+        clock       => i_Clk,
+        i_TX_valid  => activate_tx,
         i_TX_Byte   => r_tx_from_array,
         o_TX_Active => r_active,
         o_TX_Serial => o_TX,
@@ -129,7 +129,7 @@ begin
     --- delay to handle debouncing of buttons
     p_button:	process(i_clk) begin
         if(rising_edge(i_clk)) then
-            if(s_button_counter = 10000000) then
+            if(s_button_counter = 8000000) then
                 s_button_counter <= 0;
                 s_allow_press <= '1';
             else
