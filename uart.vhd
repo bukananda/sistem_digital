@@ -41,7 +41,7 @@ architecture rtl of UART is
     signal ctr_chacha : integer range 0 to 63 := 0;
 
     signal mode : std_logic := '0';
-    signal s_button_counter: integer range 0 to 50000000 := 0;
+    signal s_button_counter: integer range 0 to 8000000 := 0;
     signal s_allow_press: std_logic;
 
     signal random_byte: unsigned(15 downto 0);
