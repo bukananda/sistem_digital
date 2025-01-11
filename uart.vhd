@@ -14,6 +14,8 @@ entity UART is
     i_RX        : in  std_logic;
     i_Start     : in  std_logic;
     i_mode      : in  std_logic; -- Mode yang diharapkan apakah akan enkrip atau dekrip 
+    o_dp        : out std_logic_vector(3 downto 0);
+    o_7seg      : out std_logic_vector(0 to 6);
     o_TX        : out std_logic;
     o_mode      : out std_logic; 
     o_TX_Done   : out std_logic
@@ -87,6 +89,15 @@ architecture rtl of UART is
             random_byte : out UNSIGNED(15 downto 0)
         );
     end component;
+
+    component sevensegmen is
+        port (
+            mode    : in std_logic;
+            clk     : in std_logic;
+            dp      : out std_logic_vector(3 downto 0);
+            o       : out std_logic_vector(0 to 6)
+        );
+    end component;
 begin
     o_mode <= not mode;
   
@@ -119,9 +130,16 @@ begin
     );
 
     fbcc_component: fibonacci port map(
-        clk => i_clk,
-        rst => r_rst,
+        clk         => i_clk,
+        rst         => r_rst,
         random_byte => random_byte
+    );
+
+    svn_segmen: sevensegmen port map(
+        mode    => mode,
+        clk     => i_Clk,
+        dp      => o_dp,
+        o       => o_7seg
     );
 
    -- Delay pemencetan tombol dengan agar aktif 
@@ -190,7 +208,7 @@ begin
                     end if;
                     from_idle_state <= '0';
                     if (r_counter = upper_bond+44) then -- Sudah terambil seluruhnya (key, nonce, pesan)
-                        r_counter <= 0; 
+                        r_counter <= 0;
                         r_start <= '1'; -- Mulai mengaktifkan chacha20
                         curr_state <= keystream_mode;
                     else
