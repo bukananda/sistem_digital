@@ -2,7 +2,7 @@ import serial
 import time
 
 # Konfigurasi port serial
-port = "COM3"  # Ganti dengan port serial yang sesuai
+port = "COM4"  # Ganti dengan port serial yang sesuai
 baudrate = 9600  # Ganti dengan baud rate yang sesuai
 
 # Inisialisasi objek serial
@@ -15,7 +15,8 @@ while True:
         pilihan_mode = input("\n1. Enkripsi: \n2. Dekripsi: \n3. Keluar: \n")
         # data_tx = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
         if pilihan_mode == '1':
-            data_tx = input("Masukkan plain text: ")
+            data_from_txt = open("WhatsApp_Chat_Exports/aqib_chat_last_message.txt",'r')
+            data_tx = data_from_txt.read()
             try:
                 # Kirim data ke FPGA
                 encoded_string = data_tx.encode()
@@ -28,6 +29,7 @@ while True:
                 data_rx = ser.read(buffer_byte).hex().upper()
                 print("\nKey:", " ".join([data_rx[0:64][i:i+2] for i in range(0, len(data_rx[0:64]), 2)]))
                 print("Nonce:", " ".join([data_rx[64:88][i:i+2] for i in range(0, len(data_rx[64:88]), 2)]))
+                print("Text:",data_tx)
                 print("Plain Text Hex:", " ".join([enc_hex[i:i+2] for i in range(0, len(enc_hex), 2)]))
                 print("Chacha Hex:", " ".join([data_rx[88:344][i:i+2] for i in range(0, len(data_rx[88:344]), 2)]))
 
@@ -57,8 +59,11 @@ while True:
                 print("\nKey:", " ".join([data_hex[0:64][i:i+2] for i in range(0, len(data_hex[0:64]), 2)]))
                 print("Nonce:", " ".join([data_hex[64:88][i:i+2] for i in range(0, len(data_hex[64:88]), 2)]))
                 print("Chacha Hex:", " ".join([data_hex[88:344][i:i+2] for i in range(0, len(data_hex[88:344]), 2)]))
-                data_text = data_rx[44:172].decode('ascii')
-                print("Text:",data_text)
+                try:
+                    data_text = data_rx[44:172].decode('ascii')
+                    print("Text:",data_text)
+                except:
+                    print("Hex tidak dapat dikonversi ke ASCII")
 
             except serial.SerialTimeoutException as e:
                 print("Timeout Error:", e)
