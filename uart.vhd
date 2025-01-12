@@ -67,7 +67,7 @@ architecture rtl of UART is
         );
     end component;
 
-    component cipher_text is
+    component keystream_maker is
         port (
             clk             : in std_logic;
             i_start         : in std_logic;
@@ -116,7 +116,7 @@ begin
         o_TX_Done   => r_done
     );
 
-    keystream_maker: cipher_text port map(
+    keystream_comp: keystream_maker port map(
         clk             => i_Clk,
         i_start         => r_start,
         i_rst           => r_rst,
