@@ -18,6 +18,7 @@ options.add_argument("--disable-gpu")
 # service = Service("C:/Users/user/Documents/Python/SISDIG/chromedriver.exe")  # Sesuaikan path ini  
   
 # Inisialisasi WebDriver  
+nama = input("Nama/grup yang akan dikontak: ")
 driver = webdriver.Chrome(options=options)  
   
 # Buka WhatsApp Web  
@@ -33,11 +34,11 @@ print("Scan QR code menggunakan HP kamu.")
 # Setelah login, cari kontak atau grup  
 search_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="3"]')  
 search_box.click()  
-search_box.send_keys("Aqib")  # Ganti dengan nama kontak atau grup yang diinginkan  
+search_box.send_keys(nama)  # Ganti dengan nama kontak atau grup yang diinginkan  
 time.sleep(2)  # Tunggu sebentar agar hasil pencarian muncul  
   
 # Pilih kontak atau grup  
-contact = driver.find_element(By.XPATH, '//span[@title="Aqib"]')  # Ganti dengan nama kontak atau grup yang diinginkan  
+contact = driver.find_element(By.XPATH, f"//span[@title='{nama}']")  # Ganti dengan nama kontak atau grup yang diinginkan  
 contact.click()  
   
 # Tunggu hingga pesan muncul  
@@ -60,9 +61,9 @@ while True:
         os.makedirs(folder_path)  
     
     # Ekstrak pesan terakhir ke dalam file teks  
-    file_path = os.path.join(folder_path, "aqib_chat_last_message.txt")  
+    file_path = os.path.join(folder_path, f"{nama}_chat_last_message.txt")  
     with open(file_path, "w", encoding="utf-8") as f:  
         f.write(message_text) 
     
 # Tutup browser  
-driver.quit()  
+driver.quit()
