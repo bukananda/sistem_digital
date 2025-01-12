@@ -12,13 +12,11 @@ entity UART is
     port (
     i_Clk       : in  std_logic;
     i_RX        : in  std_logic;
-    i_Start     : in  std_logic;
     i_mode      : in  std_logic; -- Mode yang diharapkan apakah akan enkrip atau dekrip 
     o_dp        : out std_logic_vector(3 downto 0);
     o_7seg      : out std_logic_vector(0 to 6);
     o_TX        : out std_logic;
-    o_mode      : out std_logic; 
-    o_TX_Done   : out std_logic
+    o_mode      : out std_logic 
     );
 end UART;
 
@@ -239,7 +237,7 @@ begin
                     key(255-16*r_counter downto 240-16*r_counter) <= random_byte;
                     r_counter <= r_counter + 1;
                     r_start <= '0';
-                elsif ((r_counter > 15) and (r_counter < 32)) then -- Mengambil nonce dari fibonacci
+                elsif ((r_counter > 15) and (r_counter < 21)) then -- Mengambil nonce dari fibonacci
                     nonce(95-16*(r_counter-16) downto 80-16*(r_counter-16)) <= random_byte;
                     r_counter <= r_counter + 1;
                     r_start <= '0';
