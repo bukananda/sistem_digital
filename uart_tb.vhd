@@ -102,6 +102,11 @@ UART_TX_INST : uart_tx
       o_rx_valid  => w_RX_DV,
       o_rx_byte   => w_RX_BYTE
       );
+
+  UART: uart
+  port map(
+    
+  )
  
   r_CLOCK <= not r_CLOCK after 5 ps;
    

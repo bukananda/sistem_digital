@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
  
 entity UART_RX is
   generic (
-    n : integer := 5209); -- 50 MHz / 9600 
+    n : integer := 5208); -- 50 MHz / 9600 
   port (
     clock       : in  std_logic;
     i_RX_Serial : in  std_logic; 
@@ -35,7 +35,6 @@ begin
       r_RX_Data   <= r_RX_Data_R; 
     end if; 
   end process ambil_data;
- 
 
   penerimaan : process (clock)
   begin
