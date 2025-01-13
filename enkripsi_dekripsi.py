@@ -1,5 +1,6 @@
 import serial
 import time
+from what_up import nama
 
 # Konfigurasi port serial
 port = "COM4"  # Ganti dengan port serial yang sesuai
@@ -15,7 +16,7 @@ while True:
         pilihan_mode = input("\n1. Enkripsi: \n2. Dekripsi: \n3. Keluar: \n")
         # data_tx = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
         if pilihan_mode == '1':
-            data_from_txt = open("WhatsApp_Chat_Exports/aqib_chat_last_message.txt",'r')
+            data_from_txt = open(f"WhatsApp_Chat_Exports/{nama}_chat_last_message.txt",'r')
             data_tx = data_from_txt.read()
             try:
                 # Kirim data ke FPGA
