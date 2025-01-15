@@ -1,13 +1,17 @@
 import serial
 import time
-from what_up import nama
 
-# Konfigurasi port serial
-port = "COM4"  # Ganti dengan port serial yang sesuai
 baudrate = 9600  # Ganti dengan baud rate yang sesuai
-
-# Inisialisasi objek serial
-ser = serial.Serial(port, baudrate, timeout=5)
+try:
+    # Konfigurasi port serial
+    port = "COM4"  # Ganti dengan port serial yang sesuai
+    # Inisialisasi objek serial
+    ser = serial.Serial(port, baudrate, timeout=5)
+except:
+    # Konfigurasi port serial
+    port = "COM3"
+    # Inisialisasi objek serial
+    ser = serial.Serial(port, baudrate, timeout=5)
 
 # String data yang akan dikirim
 while True:
@@ -16,7 +20,7 @@ while True:
         pilihan_mode = input("\n1. Enkripsi: \n2. Dekripsi: \n3. Keluar: \n")
         # data_tx = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
         if pilihan_mode == '1':
-            data_from_txt = open(f"WhatsApp_Chat_Exports/{nama}_chat_last_message.txt",'r')
+            data_from_txt = open(f"WhatsApp_Chat_Exports/aqib_chat_last_message.txt",'r')
             data_tx = data_from_txt.read()
             try:
                 # Kirim data ke FPGA
